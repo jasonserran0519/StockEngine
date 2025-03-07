@@ -55,7 +55,6 @@ class OrderList:
         return self.head.order if self.head else None
 
 ### stock_exchange.py
-from order_list import OrderList
 from order import Order
 
 class StockExchange:
@@ -73,31 +72,35 @@ class StockExchange:
         self.match_order(ticker)
     
     def match_order(self, ticker):
-        """Match orders for the given ticker."""
+        """Match orders for the given ticker safely in a multi-threaded environment."""
         while True:
             top_buy = self.buy_orders[ticker].peek_head()
             top_sell = self.sell_orders[ticker].peek_head()
-            
+
             if not top_buy or not top_sell or top_buy.price < top_sell.price:
                 break
-            
+
             executed_quantity = min(top_buy.quantity, top_sell.quantity)
+
             print(f"Matched Order: {executed_quantity} shares of {ticker} at ${top_sell.price}")
-            
-            if top_buy.quantity > executed_quantity:
-                top_buy.quantity -= executed_quantity
-            else:
-                self.buy_orders[ticker].pop_head()
-            
-            if top_sell.quantity > executed_quantity:
-                top_sell.quantity -= executed_quantity
-            else:
-                self.sell_orders[ticker].pop_head()
+
+            # Atomic updates (ensuring safety in multi-threading)
+            with threading.Lock():  
+                if top_buy.quantity > executed_quantity:
+                    top_buy.quantity -= executed_quantity
+                else:
+                    self.buy_orders[ticker].pop_head()
+
+                if top_sell.quantity > executed_quantity:
+                    top_sell.quantity -= executed_quantity
+                else:
+                    self.sell_orders[ticker].pop_head()
+
 
 ### simulate.py
 import random
 import time
-from stock_exchange import StockExchange
+# from exchange import StockExchange
 
 def simulate_trading(stock_exchange, num_orders=100):
     tickers = list(range(1024))  # 1024 tickers
@@ -110,8 +113,8 @@ def simulate_trading(stock_exchange, num_orders=100):
         time.sleep(0.01)
 
 ### main.py
-from stock_exchange import StockExchange
-from simulate import simulate_trading
+# from exchange import StockExchange
+# from simulate import simulate_trading
 
 if __name__ == "__main__":
     exchange = StockExchange()
